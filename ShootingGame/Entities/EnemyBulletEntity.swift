@@ -5,9 +5,14 @@ import RealityKit
 import UIKit
 
 /// 敵弾の 3D モデルを生成するファクトリ
-enum EnemyBulletEntity {
+@MainActor enum EnemyBulletEntity {
+  
+  private static let template: Entity = build()
 
-    static func make() -> Entity {
+      /// テンプレートを複製して返す (メッシュ・マテリアルは共有)
+      static func make() -> Entity { template.clone(recursive: true) }
+
+    private static func build() -> Entity {
         let root = Entity()
 
         // ---- 弾本体: 赤いオーブ ----
@@ -23,13 +28,7 @@ enum EnemyBulletEntity {
         root.addChild(core)
 
         // ---- 発光ライト (赤) ----
-        var pl = PointLightComponent()
-        pl.color     = UIColor(red: 1.0, green: 0.2, blue: 0.0, alpha: 1.0)
-        pl.intensity = 600
-        pl.attenuationRadius = 0.8
-        let lightEnt = Entity()
-        lightEnt.components.set(pl)
-        root.addChild(lightEnt)
+        
 
         return root
     }

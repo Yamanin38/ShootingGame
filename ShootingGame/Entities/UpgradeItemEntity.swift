@@ -5,9 +5,12 @@ import RealityKit
 import UIKit
 
 /// アップグレードアイテム（弾数増加）の 3D モデルを生成するファクトリ
-enum UpgradeItemEntity {
+@MainActor enum UpgradeItemEntity {
+  private static let template: Entity = build()
 
-    static func make() -> Entity {
+      /// テンプレートを複製して返す (メッシュ・マテリアルは共有)
+      static func make() -> Entity { template.clone(recursive: true) }
+  private static func build() -> Entity {
         let root = Entity()
 
         // ---- 外枠: 菱形に見せるための回転ボックス ----
@@ -32,13 +35,7 @@ enum UpgradeItemEntity {
         root.addChild(core)
 
         // ---- 黄色い発光ライト ----
-        var pl = PointLightComponent()
-        pl.color     = UIColor(red: 1.0, green: 0.9, blue: 0.0, alpha: 1.0)
-        pl.intensity = 1200
-        pl.attenuationRadius = 1.5
-        let lightEnt = Entity()
-        lightEnt.components.set(pl)
-        root.addChild(lightEnt)
+        
 
         return root
     }

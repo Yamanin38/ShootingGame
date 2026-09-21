@@ -65,14 +65,7 @@ enum PlayerEntity {
         }
 
         // ---- エンジン炎 (PointLight) ----
-        var thrusterPL = PointLightComponent()
-        thrusterPL.color     = UIColor(red: 0.4, green: 0.7, blue: 1.0, alpha: 1.0)
-        thrusterPL.intensity = 2000
-        thrusterPL.attenuationRadius = 1.5
-        let thrusterLightEntity = Entity()
-        thrusterLightEntity.components.set(thrusterPL)
-        thrusterLightEntity.position = SIMD3<Float>(0, 0, 0.7)
-        root.addChild(thrusterLightEntity)
+        
 
         return root
     }

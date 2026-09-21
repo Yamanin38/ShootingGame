@@ -11,6 +11,10 @@ struct ContentView: View {
         ZStack {
             // ---- 常に背景に RealityKit ビューを表示 ----
             GameRealityView(viewModel: viewModel)
+          RadialGradient(colors: [.clear, .black.opacity(0.35)],
+                         center: .center, startRadius: 180, endRadius: 520)
+              .ignoresSafeArea()
+              .allowsHitTesting(false)
                 .ignoresSafeArea()
 
             // ---- 状態に応じたオーバーレイ ----

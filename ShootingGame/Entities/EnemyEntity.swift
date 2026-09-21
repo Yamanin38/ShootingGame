@@ -5,9 +5,12 @@ import RealityKit
 import UIKit
 
 /// 敵機の 3D モデルを生成するファクトリ
-enum EnemyEntity {
+@MainActor enum EnemyEntity {
+  private static let template: Entity = build()
 
-    static func make() -> Entity {
+      /// テンプレートを複製して返す (メッシュ・マテリアルは共有)
+      static func make() -> Entity { template.clone(recursive: true) }
+    private static func build() -> Entity {
         let root = Entity()
 
         // ---- 機体ディスク (扁平な六角形イメージ) ----
@@ -50,13 +53,7 @@ enum EnemyEntity {
 
         // ---- 赤い周囲ライト ----
         let lightEnt = Entity()
-        var pl = PointLightComponent()
-        pl.color = UIColor(red: 1.0, green: 0.2, blue: 0.1, alpha: 1.0)
-        pl.intensity = 1500
-        pl.attenuationRadius = 2.0
-        lightEnt.components.set(pl)
-        lightEnt.position = SIMD3<Float>(0, 0.2, 0)
-        root.addChild(lightEnt)
+        
 
         // 機体を自機の方向(Z+)へ向かせるため180度回転
         root.orientation = simd_quatf(angle: .pi, axis: [0, 1, 0])

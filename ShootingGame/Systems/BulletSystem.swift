@@ -22,46 +22,34 @@ final class BulletSystem {
             viewModel.playerFireTimer = GameConfig.playerBulletFireRate
         }
 
-        // 弾の移動と画面外削除 (単一パスで処理)
-        var toRemove: [Int] = []
-        for i in viewModel.bullets.indices where viewModel.bullets[i].isPlayerBullet {
-            let newPos = viewModel.bullets[i].position + viewModel.bullets[i].velocity * Float(dt)
-            viewModel.bullets[i].entity.position = newPos
-            if newPos.z < -(GameConfig.playfieldHalfHeight + 2.0) {
-                viewModel.bullets[i].entity.removeFromParent()
-                toRemove.append(i)
-            } else {
-                viewModel.bullets[i] = BulletData(
-                    entity: viewModel.bullets[i].entity,
-                    position: newPos,
-                    velocity: viewModel.bullets[i].velocity,
-                    isPlayerBullet: true
-                )
-            }
-        }
-        for i in toRemove.reversed() { viewModel.bullets.remove(at: i) }
+        moveBullets(dt: dt, viewModel: viewModel, playerBullets: true)
     }
 
     // MARK: - 敵弾の更新
 
     func updateEnemyBullets(dt: TimeInterval, viewModel: GameViewModel) {
-        var toRemove: [Int] = []
-        for i in viewModel.bullets.indices where !viewModel.bullets[i].isPlayerBullet {
-            let newPos = viewModel.bullets[i].position + viewModel.bullets[i].velocity * Float(dt)
+        moveBullets(dt: dt, viewModel: viewModel, playerBullets: false)
+    }
+
+    // MARK: - 移動と画面外削除
+
+    /// 移動してから、画面外の弾をまとめて削除する
+    /// (インデックスを保持しないので、範囲外アクセスが起きない)
+    private func moveBullets(dt: TimeInterval, viewModel: GameViewModel, playerBullets: Bool) {
+        let step = Float(dt)
+        for i in viewModel.bullets.indices where viewModel.bullets[i].isPlayerBullet == playerBullets {
+            let newPos = viewModel.bullets[i].position + viewModel.bullets[i].velocity * step
+            viewModel.bullets[i].position = newPos
             viewModel.bullets[i].entity.position = newPos
-            if newPos.z > (GameConfig.playfieldHalfHeight + 2.0) {
-                viewModel.bullets[i].entity.removeFromParent()
-                toRemove.append(i)
-            } else {
-                viewModel.bullets[i] = BulletData(
-                    entity: viewModel.bullets[i].entity,
-                    position: newPos,
-                    velocity: viewModel.bullets[i].velocity,
-                    isPlayerBullet: false
-                )
-            }
         }
-        for i in toRemove.reversed() { viewModel.bullets.remove(at: i) }
+
+        let limit = GameConfig.playfieldHalfHeight + 2.0
+        viewModel.bullets.removeAll { bullet in
+            guard bullet.isPlayerBullet == playerBullets else { return false }
+            let outside = playerBullets ? (bullet.position.z < -limit) : (bullet.position.z > limit)
+            if outside { bullet.entity.removeFromParent() }
+            return outside
+        }
     }
 
     // MARK: - 弾の発射
