@@ -5,10 +5,12 @@ import UIKit
 @MainActor
 final class EffectManager {
 
-    // 起動時に1回だけ生成してキャッシュ
     private let glowTexture  = EffectManager.makeTexture(stops: [(0, 1.0), (0.35, 0.55), (1, 0)])
     private let sparkTexture = EffectManager.makeTexture(stops: [(0, 1.0), (0.5, 0.9), (1, 0)])
     private let ringTexture  = EffectManager.makeTexture(stops: [(0, 0), (0.7, 0), (0.88, 1.0), (1, 0)])
+
+    /// 爆発全体の寿命 (最長レイヤーの終了より少し長く)
+    private let lifetime: TimeInterval = 1.0
 
     // MARK: - 爆発本体
 
@@ -26,22 +28,24 @@ final class EffectManager {
         addDebris(to: root)
 
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.8))
+            try? await Task.sleep(for: .seconds(lifetime))
             root.removeFromParent()
         }
     }
 
-    // MARK: - 各レイヤー
+    // MARK: - レイヤー
+    // 各エミッターは「emissionDuration の間に birthRate 個だけ出して終わり」(ループしない)
 
-    /// ① 閃光: 一瞬だけ出る大きな白黄色の光 (PointLight の代わり)
+    /// ① 閃光
     private func addFlash(to parent: Entity) {
-        addEmitter(to: parent, duration: 0.03) { p in
+        addEmitter(to: parent) { p in
+          p.timing = .once(warmUp: 0, emit: .init(duration: 0.04))
             p.emitterShape = .point
             p.speed = 0
-            p.mainEmitter.birthRate = 60
-            p.mainEmitter.lifeSpan = 0.14
-            p.mainEmitter.size = 2.6
-            p.mainEmitter.sizeMultiplierAtEndOfLifespan = 1.6
+            p.mainEmitter.birthRate = 4
+            p.mainEmitter.lifeSpan = 0.12
+            p.mainEmitter.size = 2.2
+            p.mainEmitter.sizeMultiplierAtEndOfLifespan = 1.5
             p.mainEmitter.image = self.glowTexture
             p.mainEmitter.blendMode = .additive
             p.mainEmitter.color = .constant(.single(UIColor(red: 1.0, green: 0.95, blue: 0.75, alpha: 1)))
@@ -49,13 +53,14 @@ final class EffectManager {
         }
     }
 
-    /// ② 衝撃波リング: 1粒だけ出して一気に拡大
+    /// ② 衝撃波リング
     private func addShockwave(to parent: Entity) {
-        addEmitter(to: parent, duration: 0.03) { p in
+        addEmitter(to: parent) { p in
+          p.timing = .once(warmUp: 0, emit: .init(duration: 0.03))
             p.emitterShape = .point
             p.speed = 0
-            p.mainEmitter.birthRate = 40
-            p.mainEmitter.lifeSpan = 0.35
+            p.mainEmitter.birthRate = 3
+            p.mainEmitter.lifeSpan = 0.28
             p.mainEmitter.size = 0.5
             p.mainEmitter.sizeMultiplierAtEndOfLifespan = 7.0
             p.mainEmitter.image = self.ringTexture
@@ -65,21 +70,22 @@ final class EffectManager {
         }
     }
 
-    /// ③ 火球: 黄白 → 橙 → 暗赤へ変化しながら膨らむ
+    /// ③ 火球
     private func addFireball(to parent: Entity) {
-        addEmitter(to: parent, duration: 0.10) { p in
+        addEmitter(to: parent) { p in
+          p.timing = .once(warmUp: 0, emit: .init(duration: 0.08))
             p.emitterShape = .sphere
-            p.emitterShapeSize = SIMD3<Float>(0.5, 0.2, 0.5)
+            p.emitterShapeSize = SIMD3<Float>(repeating: 0.4)   // 縦横比を揃える
             p.birthLocation = .volume
             p.birthDirection = .normal
-            p.speed = 2.5
-            p.speedVariation = 1.0
-            p.mainEmitter.birthRate = 300
-            p.mainEmitter.lifeSpan = 0.55
-            p.mainEmitter.lifeSpanVariation = 0.15
-            p.mainEmitter.size = 1.0
-            p.mainEmitter.sizeVariation = 0.4
-            p.mainEmitter.sizeMultiplierAtEndOfLifespan = 1.8
+            p.speed = 2.2
+            p.speedVariation = 0.5
+            p.mainEmitter.birthRate = 24
+            p.mainEmitter.lifeSpan = 0.38
+            p.mainEmitter.lifeSpanVariation = 0.05
+            p.mainEmitter.size = 0.9
+            p.mainEmitter.sizeVariation = 0.1
+            p.mainEmitter.sizeMultiplierAtEndOfLifespan = 1.7
             p.mainEmitter.dampingFactor = 4
             p.mainEmitter.image = self.glowTexture
             p.mainEmitter.blendMode = .additive
@@ -90,18 +96,19 @@ final class EffectManager {
         }
     }
 
-    /// ④ 火花: 小さく速い粒が四方に飛ぶ
+    /// ④ 火花
     private func addSparks(to parent: Entity) {
-        addEmitter(to: parent, duration: 0.06) { p in
+        addEmitter(to: parent) { p in
+          p.timing = .once(warmUp: 0, emit: .init(duration: 0.05))
             p.emitterShape = .sphere
-            p.emitterShapeSize = SIMD3<Float>(0.2, 0.2, 0.2)
+            p.emitterShapeSize = SIMD3<Float>(repeating: 0.1)
             p.birthDirection = .normal
-            p.speed = 8
-            p.speedVariation = 4
-            p.mainEmitter.birthRate = 400
-            p.mainEmitter.lifeSpan = 0.5
-            p.mainEmitter.lifeSpanVariation = 0.2
-            p.mainEmitter.size = 0.16
+            p.speed = 7
+            p.speedVariation = 1.5
+            p.mainEmitter.birthRate = 36
+            p.mainEmitter.lifeSpan = 0.35
+            p.mainEmitter.lifeSpanVariation = 0.08
+            p.mainEmitter.size = 0.14
             p.mainEmitter.sizeMultiplierAtEndOfLifespan = 0.2
             p.mainEmitter.dampingFactor = 2.5
             p.mainEmitter.image = self.sparkTexture
@@ -113,67 +120,60 @@ final class EffectManager {
         }
     }
 
-    /// ⑤ 煙: 通常のアルファ合成で暗く、ゆっくり残る
+    /// ⑤ 煙
     private func addSmoke(to parent: Entity) {
-        addEmitter(to: parent, duration: 0.2) { p in
+        addEmitter(to: parent) { p in
+          p.timing = .once(warmUp: 0, emit: .init(duration: 0.1))
             p.emitterShape = .sphere
-            p.emitterShapeSize = SIMD3<Float>(0.6, 0.2, 0.6)
+            p.emitterShapeSize = SIMD3<Float>(repeating: 0.4)
             p.birthLocation = .volume
             p.birthDirection = .normal
-            p.speed = 0.8
-            p.speedVariation = 0.4
-            p.mainEmitter.birthRate = 45
-            p.mainEmitter.lifeSpan = 1.1
-            p.mainEmitter.lifeSpanVariation = 0.3
+            p.speed = 0.7
+            p.mainEmitter.birthRate = 10
+            p.mainEmitter.lifeSpan = 0.7
+            p.mainEmitter.lifeSpanVariation = 0.1
             p.mainEmitter.size = 0.9
-            p.mainEmitter.sizeVariation = 0.3
-            p.mainEmitter.sizeMultiplierAtEndOfLifespan = 2.2
+            p.mainEmitter.sizeMultiplierAtEndOfLifespan = 2.0
             p.mainEmitter.dampingFactor = 2
             p.mainEmitter.image = self.glowTexture
             p.mainEmitter.blendMode = .alpha
             p.mainEmitter.color = .constant(.single(UIColor(white: 0.12, alpha: 0.55)))
-          p.mainEmitter.opacityCurve = .gradualFadeInOut
+            p.mainEmitter.opacityCurve = .linearFadeOut
         }
     }
 
-    /// ⑥ 破片: 回転しながら飛んで縮む
+    /// ⑥ 破片 (毎回同じ配置・同じ大きさ。全体の向きだけランダム)
     private func addDebris(to parent: Entity) {
         let mat = UnlitMaterial(color: UIColor(red: 1.0, green: 0.55, blue: 0.15, alpha: 1))
-        for i in 0..<10 {
-            let size = Float.random(in: 0.12...0.3)
-            let mesh = MeshResource.generateBox(size: size)
+        let mesh = MeshResource.generateBox(size: 0.2)
+        let count = 8
+        let baseAngle = Float.random(in: 0..<(2 * .pi))
+
+        for i in 0..<count {
             let piece = ModelEntity(mesh: mesh, materials: [mat])
             parent.addChild(piece)
 
-            let angle = (Float(i) / 10 + Float.random(in: -0.05...0.05)) * 2 * .pi
-            let dir = SIMD3<Float>(cos(angle), 0, sin(angle))
+            let angle = baseAngle + Float(i) / Float(count) * 2 * .pi
             var target = piece.transform
-            target.translation += dir * Float.random(in: 1.8...4.0)
+            target.translation += SIMD3<Float>(cos(angle), 0, sin(angle)) * 2.4
             target.scale = SIMD3<Float>(repeating: 0.01)
-            target.rotation = simd_quatf(angle: .pi * Float.random(in: 0.6...1.0),
-                                         axis: simd_normalize(SIMD3<Float>.random(in: -1...1)))
-            piece.move(to: target, relativeTo: parent,
-                       duration: Double.random(in: 0.5...0.9), timingFunction: .easeOut)
+            target.rotation = simd_quatf(angle: .pi * 0.8, axis: simd_normalize(SIMD3<Float>(1, Float(i % 3) + 1, 0.5)))
+            piece.move(to: target, relativeTo: parent, duration: 0.5, timingFunction: .easeOut)
         }
     }
 
     // MARK: - ヘルパー
 
-    /// エミッターを1つ作り、duration 秒だけ放出して止める
-    private func addEmitter(to parent: Entity, duration: TimeInterval,
-                            configure: (inout ParticleEmitterComponent) -> Void) {
+    /// 共通設定: ループさせない・速度方向に伸ばさない
+    private func addEmitter(to parent: Entity, configure: (inout ParticleEmitterComponent) -> Void) {
         var p = ParticleEmitterComponent()
+        p.mainEmitter.stretchFactor = 0
         configure(&p)
         let e = Entity()
         e.components.set(p)
         parent.addChild(e)
-        Task { @MainActor [weak e] in
-            try? await Task.sleep(for: .seconds(duration))
-            e?.components[ParticleEmitterComponent.self]?.isEmitting = false
-        }
     }
 
-    /// 白の放射状グラデーション (alpha だけ変化) をコードで生成
     private static func makeTexture(stops: [(CGFloat, CGFloat)]) -> TextureResource? {
         let size = 128
         let cs = CGColorSpaceCreateDeviceRGB()

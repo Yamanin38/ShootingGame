@@ -17,6 +17,8 @@ struct GameRealityView: UIViewRepresentable {
         let arView = ARView(frame: .zero, cameraMode: .nonAR, automaticallyConfigureSession: false)
         arView.renderOptions = [.disableMotionBlur, .disableFaceOcclusions]
         arView.environment.background = .color(UIColor(red: 0.03, green: 0.03, blue: 0.10, alpha: 1.0))
+      let post = PostProcessor()
+      arView.renderCallbacks.postProcess = { context in post.apply(context) }
 
         // ---- カメラ設定 (真上から見下ろす) ----
         let cameraEntity = PerspectiveCamera()
