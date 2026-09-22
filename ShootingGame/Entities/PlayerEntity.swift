@@ -5,11 +5,45 @@ import RealityKit
 import UIKit
 
 /// 自機の 3D モデルを生成するファクトリ
-/// 将来的に Blender の .usdz をロードする場合はこのファイルだけ変更する
 enum PlayerEntity {
+
+    /// Tripo3D 等で生成した USDZ の事前ロード済みテンプレート
+    /// (バンドルに追加した usdz のファイル名 拡張子なし)
+    private static let usdzName = "PlayerShip"
+
+    private static var cachedTemplate: Entity?
+    private static var didAttemptLoad = false
+
+    /// 起動時などに事前ロードしておく (ContentView の .task から呼ぶ)
+    static func preload() async {
+        guard !didAttemptLoad else { return }
+        didAttemptLoad = true
+        do {
+            let entity = try await Entity(named: usdzName, in: nil)
+            entity.orientation = correctionOrientation()
+            cachedTemplate = entity
+        } catch {
+            print("PlayerEntity: USDZ読み込み失敗、プリミティブにフォールバック: \(error)")
+        }
+    }
 
     /// 自機エンティティを生成して返す
     static func make() -> Entity {
+        if let template = cachedTemplate {
+            return template.clone(recursive: true)
+        }
+        return fallbackMake()
+    }
+
+    /// Tripo のエクスポート向きとゲーム内の前方(-Z)を合わせるための補正
+    /// 実機で読み込んでみて向きがずれていたら axis/angle を調整する
+    private static func correctionOrientation() -> simd_quatf {
+        simd_quatf(angle: 0, axis: [0, 1, 0]) // 一旦補正なし。ずれていたら調整
+    }
+
+    // MARK: - フォールバック (従来のプリミティブ機体)
+
+    private static func fallbackMake() -> Entity {
         let root = Entity()
 
         // ---- 機体本体 (細長い六角柱) ----
@@ -58,14 +92,10 @@ enum PlayerEntity {
 
         for xOff: Float in [-0.18, 0.18] {
             let nozzle = ModelEntity(mesh: nozzleMesh, materials: [nozzleMat])
-            // シリンダーは Y 軸方向なのでXZ回転して後方向きにする
             nozzle.orientation = simd_quatf(angle: .pi / 2, axis: [1, 0, 0])
             nozzle.position = SIMD3<Float>(xOff, -0.02, 0.5)
             root.addChild(nozzle)
         }
-
-        // ---- エンジン炎 (PointLight) ----
-        
 
         return root
     }

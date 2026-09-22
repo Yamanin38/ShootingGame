@@ -38,6 +38,8 @@ struct ContentView: View {
                 }
                 .transition(.opacity)
             }
+        }.task {
+          await PlayerEntity.preload()
         }
         .animation(.easeInOut(duration: 0.3), value: viewModel.gameState)
         // ステータスバーを非表示にしてフルスクリーン化
